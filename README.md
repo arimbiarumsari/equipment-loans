@@ -1,4 +1,4 @@
-# Equipment Loans API (AWS Track B: EC2 + Docker + ECR)
+# Equipment Loans API (AWS Track B: Cloud9 (EC2) + Docker + ECR)
 
 Individual project, AWS Cloud Computing. A small REST API for managing equipment loans.
 
@@ -7,23 +7,26 @@ Individual project, AWS Cloud Computing. A small REST API for managing equipment
 ![Architecture diagram](docs/architecture.png)
 
 ```
-Client -> Internet -> Security Group (8080; SSH only from my IP)
-       -> EC2 t3.small (Amazon Linux 2023, LabInstanceProfile)
-            +-- docker compose
-                 +-- api  (Flask + gunicorn, image pulled from ECR)
-                 |     |
-                 |     v  internal Docker network
-                 +-- db   (postgres:16-alpine, volume pgdata, no public port)
+Developer -> AWS Console -> Cloud9 environment (EC2 t3.small, Amazon Linux 2023)
+                              +-- docker compose
+                                   +-- api  (Flask + gunicorn, image pulled from ECR)
+                                   |     |
+                                   |     v  internal Docker network
+                                   +-- db   (postgres:16-alpine, volume pgdata, no public port)
+
+Testing: curl / test script inside the Cloud9 terminal -> http://localhost:8080
 ```
 
 | Component | Purpose |
 |---|---|
 | ECR `equipment-api` | Private registry for the API image |
-| EC2 t3.small | Runs both containers with Docker Compose |
-| Security Group `equipment-sg` | 22 from my IP, 8080 public |
-| LabInstanceProfile (LabRole) | Lets EC2 pull from ECR without static credentials |
+| Cloud9 environment (EC2 t3.small) | Development and runtime host; runs both containers with Docker Compose |
+| Temporary Learner Lab credentials | Used by AWS CLI to log in to ECR and push/pull the image |
 
 Architecture diagram: `docs/architecture.png`
+
+> Note: a standalone EC2 instance could not be used in the Learner Lab, so the same EC2-based setup is
+> run through Cloud9. The API is not exposed publicly; it is tested through `localhost`.
 
 ## Entity
 
@@ -52,32 +55,30 @@ docker compose up -d --build
 
 1. Start Learner Lab, open the AWS Console.
 2. Create private ECR repository `equipment-api`.
-3. Create Security Group `equipment-sg` (22 from My IP, 8080 from 0.0.0.0/0).
-4. Launch EC2: t3.small, Amazon Linux 2023, 20 GB gp3, new key pair, `equipment-sg`, IAM instance profile `LabInstanceProfile`.
-5. SSH in and install Docker, Compose plugin and git:
+3. Create a Cloud9 environment (new EC2 instance, Amazon Linux 2023) and open its terminal.
+4. Make sure Docker and the Compose plugin are available (install them if missing) and clone this repo:
    ```bash
-   sudo dnf install -y docker git
-   sudo systemctl enable --now docker
-   sudo usermod -aG docker ec2-user   # re-login afterwards
-   sudo mkdir -p /usr/local/lib/docker/cli-plugins
-   sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
-     -o /usr/local/lib/docker/cli-plugins/docker-compose
-   sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+   docker --version && docker compose version
+   git clone https://github.com/arimbiarumsari/equipment-loans.git && cd equipment-loans
    ```
-6. Clone this repo on EC2, create `.env` from `.env.example` (set account ID, image URI, password).
+5. Set the temporary Learner Lab credentials in the terminal (from *AWS Details* in Learner Lab):
+   ```bash
+   export AWS_ACCESS_KEY_ID=...
+   export AWS_SECRET_ACCESS_KEY=...
+   export AWS_SESSION_TOKEN=...
+   export AWS_DEFAULT_REGION=us-east-1
+   ```
+   These expire when the lab session ends, so repeat this step in every new session.
+6. Create `.env` from `.env.example` (set account ID, image URI, password).
 7. Build and push image: `./scripts/push-image.sh`
 8. Deploy: `./scripts/deploy.sh`
-9. Verify: `./scripts/test-api.sh http://<EC2-PUBLIC-IP>:8080`
-
-## Cost control
-
-Estimated total about 5 USD (EC2 ~120 active hours, 20 GB EBS, public IPv4, ECR under 1 GB), roughly 12% of the 40 USD budget (ceiling: 60%).
-No NAT Gateway, ALB or RDS. EC2 is **stopped** after each work session. Public IP changes after every start.
+9. Verify from the Cloud9 terminal: `./scripts/test-api.sh http://localhost:8080`
 
 ## Security notes
 
 - DB port is not published; only the `api` container can reach it.
-- SSH restricted to my IP; no static AWS keys on the instance (instance profile only).
+- API port 8080 is not opened to the internet; access is via `localhost` only.
+- No static AWS keys: only temporary Learner Lab credentials, exported in the terminal session and never written to the repo.
 - `.env` and `*.pem` are git-ignored.
 
 ## Evidence
