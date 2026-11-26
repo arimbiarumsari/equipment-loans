@@ -4,6 +4,8 @@ Individual project, AWS Cloud Computing. A small REST API for managing equipment
 
 ## Architecture
 
+![Architecture diagram](docs/architecture.png)
+
 ```
 Client -> Internet -> Security Group (8080; SSH only from my IP)
        -> EC2 t3.small (Amazon Linux 2023, LabInstanceProfile)
