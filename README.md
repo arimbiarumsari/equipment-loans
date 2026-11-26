@@ -4,7 +4,7 @@ Individual project, AWS Cloud Computing. A small REST API for managing equipment
 
 ## Architecture
 
-![Architecture diagram](docs/architecture.png)
+<img width="1650" height="1080" alt="architecture" src="https://github.com/user-attachments/assets/bae124a2-b000-4fda-89e9-958156a18150" />
 
 ```
 Developer -> AWS Console -> Cloud9 environment (EC2 t3.small, Amazon Linux 2023)
